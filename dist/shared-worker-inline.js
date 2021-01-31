@@ -11,7 +11,7 @@ const SharedWorker = () => {
         window.io = require('socket.io-client')
     }
 
-    let socket = io(self.name),
+    let socket = io(self.name, self.options),
         ports = [],
         socketConnected = false
 
