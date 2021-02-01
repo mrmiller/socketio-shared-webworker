@@ -8,7 +8,7 @@ const SharedWorker = () => {
     try {
         importScripts(self.name + 'socket.io/socket.io.js')
     } catch(e) {
-        window.io = require('socket.io-client')
+        io = require('socket.io-client')
     }
 
     let socket = io(self.name, self.options),
