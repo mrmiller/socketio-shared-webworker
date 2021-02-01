@@ -24,13 +24,17 @@ class SharedWorkerSocketIO {
         this.socket = io(this.socketUri, this.options)
     }
 
-    startWorker() {
-        const workerUri = this.getWorkerUri()
-        this.log('Starting Worker', this.WorkerType, workerUri)
-        this.worker = new this.WorkerType(workerUri, {
-            name: this.socketUri,
-            options: this.options
-        })
+    startWorker(worker) {
+        this.started = true
+        if (!worker) {
+            const workerUri = this.getWorkerUri()
+            this.log('Starting Worker', this.WorkerType, workerUri)
+            worker = new this.WorkerType(workerUri, {
+                name: this.socketUri,
+                options: this.options
+            })
+        }
+        this.worker = worker;
         const port = this.worker.port || this.worker
         port.onmessage = event => {
             this.log('<< worker received message:', event.data.type, event.data.message)
@@ -74,7 +78,6 @@ class SharedWorkerSocketIO {
     }
 
     start() {
-        this.started = true
         try {
             this.log('Attempting to start socket.io shared webworker')
             this.startWorker()
