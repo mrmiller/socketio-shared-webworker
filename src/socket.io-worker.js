@@ -13,6 +13,8 @@ class SharedWorkerSocketIO {
     events = new EventEmitter()
     socket = null
     options = null
+    nextAckId = 0
+    callbacks = {}
 
     constructor(socketUri, options) {
         this.log('SharedWorkerSocketIO ', socketUri)
@@ -25,20 +27,30 @@ class SharedWorkerSocketIO {
     }
 
     startWorker(worker) {
-        this.started = true
-        if (!worker) {
-            const workerUri = this.getWorkerUri()
-            this.log('Starting Worker', this.WorkerType, workerUri)
-            worker = new this.WorkerType(workerUri, {
-                name: this.socketUri,
-                options: this.options
-            })
-        }
-        this.worker = worker;
+      this.started = true
+      if (!worker) {
+          const workerUri = this.getWorkerUri()
+          this.log('Starting Worker', this.WorkerType, workerUri)
+          worker = new this.WorkerType(workerUri, {
+              name: this.socketUri,
+              options: this.options
+          })
+      }
+      this.worker = worker;
         const port = this.worker.port || this.worker
         port.onmessage = event => {
-            this.log('<< worker received message:', event.data.type, event.data.message)
-            this.events.emit(event.data.type, event.data.message)
+            if (event.data.id !== undefined) {
+                const cb = this.callbacks[event.data.id];
+                delete this.callbacks[event.data.id];
+                if (!cb) {
+                  this.log('Mismatched ack id for emit callback: ', event.data.id);
+                  return;
+                }
+                cb(event.data.message);
+            } else {
+                this.log('<< worker received message:', event.data.type, event.data.message)
+                this.events.emit(event.data.type, event.data.message)
+            }
         }
         this.worker.onerror = event => {
             this.log('worker error', event)
@@ -47,16 +59,25 @@ class SharedWorkerSocketIO {
         this.log('worker started')
     }
 
-    emit(event, data, cb) {
-        this.log('>> emit:', event, data, cb)
+    emit(event, ...args) {
+        let cb = null
+        if (args.length > 0 && typeof args[args.length - 1] === 'function') {
+          cb = args[args.length - 1]
+          args.pop()
+        }
+        this.log('>> emit:', event, args, cb)
         if (this.worker) {
-            // todo: ack cb
             const port = this.worker.port || this.worker
+            const id = cb ? (this.nextAckId ++) : undefined;
             port.postMessage({
                 eventType: 'emit',
-                event: event,
-                data: data
+                event,
+                data: args,
+                id
             })
+            if (cb) {
+              this.callbacks[id] = cb;
+            }
         } else {
             this.socket.emit(...arguments)
         }

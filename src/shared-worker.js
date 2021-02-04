@@ -83,7 +83,17 @@ const SharedWorker = () => {
                 })
             break;
             case 'emit':
-                socket.emit(model.event, model.data) // todo: ack cb
+                if (model.id !== undefined) {
+                    socket.emit(model.event, ...model.data, (data) => {
+                        port.postMessage({
+                            type: 'emitAck',
+                            id: model.id,
+                            message: data
+                        })
+                    })
+                } else {
+                    socket.emit(model.event, ...model.data)
+                }
             break;
         }
 
