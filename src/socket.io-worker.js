@@ -1,6 +1,6 @@
 'use strict';
 
-const EventEmitter = require('eventemitter3')
+const EventEmitter = require('eventemitter2')
 const io = require('socket.io-client')
 require('../dist/shared-worker-inline.js')
 
@@ -27,29 +27,29 @@ class SharedWorkerSocketIO {
     }
 
     startWorker(worker) {
-      this.started = true
-      if (!worker) {
-          const workerUri = this.getWorkerUri()
-          this.log('Starting Worker', this.WorkerType, workerUri)
-          worker = new this.WorkerType(workerUri, {
-              name: this.socketUri,
-              options: this.options
-          })
-      }
-      this.worker = worker;
+        this.started = true
+        if (!worker) {
+            const workerUri = this.getWorkerUri()
+            this.log('Starting Worker', this.WorkerType, workerUri)
+            worker = new this.WorkerType(workerUri, {
+                name: this.socketUri,
+                options: this.options
+            })
+        }
+        this.worker = worker;
         const port = this.worker.port || this.worker
         port.onmessage = event => {
+            this.log('<< worker received message:', event.data)
             if (event.data.id !== undefined) {
-                const cb = this.callbacks[event.data.id];
-                delete this.callbacks[event.data.id];
+                const cb = this.callbacks[event.data.id]
+                delete this.callbacks[event.data.id]
                 if (!cb) {
-                  this.log('Mismatched ack id for emit callback: ', event.data.id);
-                  return;
+                  this.log('Mismatched ack id for emit callback: ', event.data.id)
+                  return
                 }
-                cb(event.data.message);
+                cb(...event.data.message)
             } else {
-                this.log('<< worker received message:', event.data.type, event.data.message)
-                this.events.emit(event.data.type, event.data.message)
+                this.events.emit(event.data.type, ...event.data.message)
             }
         }
         this.worker.onerror = event => {
@@ -65,7 +65,7 @@ class SharedWorkerSocketIO {
           cb = args[args.length - 1]
           args.pop()
         }
-        this.log('>> emit:', event, args, cb)
+        this.log('>> emit:', event, ...args, cb)
         if (this.worker) {
             const port = this.worker.port || this.worker
             const id = cb ? (this.nextAckId ++) : undefined;
@@ -86,15 +86,40 @@ class SharedWorkerSocketIO {
     on(event, cb) {
         if (this.worker) {
             this.log('worker add handler on event:', event)
-            const port = this.worker.port || this.worker
-            port.postMessage({
-                eventType: 'on',
-                event: event
-            })
             this.events.on(event, cb)
         } else {
             this.log('socket add handler on event:', event)
             this.socket.on(...arguments)
+        }
+    }
+
+    onAny(cb) {
+        if (this.worker) {
+            this.log('worker add handler on any event')
+            this.events.onAny(cb)
+        } else {
+            this.log('socket add handler on any event')
+            this.socket.onAny(...arguments)
+        }
+    }
+
+    prependAny(cb) {
+        if (this.worker) {
+            this.log('worker prepend handler on any event')
+            this.events.prependAny(cb)
+        } else {
+            this.log('socket prepend handler on any event')
+            this.socket.prependAny(...arguments)
+        }
+    }
+
+    offAny() {
+        if (this.worker) {
+            this.log('worker remove handler on any event')
+            this.events.offAny(...arguments)
+        } else {
+            this.log('socket remove handler on any event')
+            this.socket.offAny(...arguments)
         }
     }
 

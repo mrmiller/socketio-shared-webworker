@@ -28,12 +28,12 @@
   "homepage": "https://github.com/IguMail/socketio-shared-webworker#readme",
   "dependencies": {
     "debug": "^4.1.1",
-    "eventemitter3": "^1.2.0",
+    "eventemitter2": "^6.4.3",
     "socket.io": "^2.3.0"
   },
   "devDependencies": {
     "@babel/core": "^7.9.6",
-    "@babel/plugin-proposal-class-properties": "^7.8.3",
+    "@babel/plugin-proposal-class-properties": "^7.12.13",
     "@babel/preset-env": "^7.9.6",
     "babel-eslint": "^10.1.0",
     "babel-loader": "^8.1.0",

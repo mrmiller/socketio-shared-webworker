@@ -21,7 +21,7 @@ const SharedWorker = () => {
         ports.forEach(function(port) {
             port.postMessage({
                 type: 'connect',
-                message: msg
+                message: [msg]
             })
         })
     })
@@ -30,8 +30,28 @@ const SharedWorker = () => {
         ports.forEach(function(port) {
             port.postMessage({
                 type: 'disconnect',
-                message: msg
+                message: [msg]
             })
+        })
+    })
+    if (!socket.onAny) {
+      const anyListeners = []
+      socket.onAny = (cb) => {
+        anyListeners.push(cb)
+      }
+      const onevent = socket.onevent.bind(socket);
+      socket.onevent = (packet) => {
+          let [event, ...args] = packet.data;
+          anyListeners.forEach((l) => {
+            l(event, ...args)
+          })
+          onevent(packet) // call the base version
+      }
+    }
+    socket.onAny((type, ...message) => {
+        log('socket received message', ...message)
+        ports.forEach((port) => {
+            port.postMessage({ type, message })
         })
     })
 
@@ -51,7 +71,7 @@ const SharedWorker = () => {
     if (typeof Worker !== 'undefined') {
         setTimeout(() => postMessage({
             type: 'connect',
-            message: null
+            message: []
         }))
     }
 
@@ -74,27 +94,27 @@ const SharedWorker = () => {
                 if (eventName == 'disconnect') {
                     break;
                 }
-                socket.on(eventName, function(msg) {
-                    log('socket received message', msg)
+                socket.on(eventName, (...message) => {
+                    log('socket received message', ...msg)
                     port.postMessage({
                         type: eventName,
-                        message: msg
+                        message
                     })
                 })
-            break;
+                break;
             case 'emit':
                 if (model.id !== undefined) {
                     socket.emit(model.event, ...model.data, (data) => {
                         port.postMessage({
                             type: 'emitAck',
                             id: model.id,
-                            message: data
+                            message: [data]
                         })
                     })
                 } else {
                     socket.emit(model.event, ...model.data)
                 }
-            break;
+                break;
         }
 
     }
